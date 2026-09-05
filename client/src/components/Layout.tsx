@@ -9,52 +9,28 @@ import {
   Receipt,
   Activity,
   BarChart3,
-  Settings,
-  UserCheck,
   LogOut,
   RefreshCw,
   Sparkles,
+  Settings,
+  Shield,
+  Inbox,
+  Warehouse,
 } from 'lucide-react';
-import { api, getStoredUser, setStoredUser, clearAuthToken, setAuthToken } from '../api';
+import { api, getStoredUser, clearAuthToken } from '../api';
+import { useToast } from './Toast';
+import { NotificationCenter } from './NotificationCenter';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(getStoredUser() || {
-    id: 'demo-user',
-    name: 'Alex Rep',
-    email: 'rep@dealflow360.demo',
-    role: 'SALES_REP',
-  });
+  const [currentUser, setCurrentUser] = useState(getStoredUser());
   const [isResetting, setIsResetting] = useState(false);
-
-  const demoUsers = [
-    { name: 'Alex Rep', role: 'SALES_REP', email: 'rep@dealflow360.demo' },
-    { name: 'Morgan Manager', role: 'SALES_MANAGER', email: 'manager@dealflow360.demo' },
-    { name: 'Frank Finance', role: 'FINANCE_OPERATIONS', email: 'finance@dealflow360.demo' },
-    { name: 'Charlie Customer', role: 'CUSTOMER', email: 'customer@acme.demo' },
-    { name: 'Alice Admin', role: 'ADMIN', email: 'admin@dealflow360.demo' },
-  ];
-
-  const handleRoleSwitch = async (email: string) => {
-    try {
-      const res = await api.login({ email, password: 'Password123!' });
-      setAuthToken(res.token);
-      setStoredUser(res.user);
-      setCurrentUser(res.user);
-      if (res.user.role === 'CUSTOMER') {
-        navigate('/customer-portal');
-      } else {
-        navigate('/dashboard');
-      }
-    } catch (e: any) {
-      alert(`Login failed for ${email}: ` + e.message);
-    }
-  };
 
   const handleLogout = () => {
     clearAuthToken();
@@ -66,38 +42,86 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     try {
       setIsResetting(true);
       await api.resetDatabase();
-      alert('Database successfully reset and re-seeded!');      window.location.reload();
+      toast.success('Database successfully reset and re-seeded!');
+      setTimeout(() => window.location.reload(), 600);
     } catch (e: any) {
-      alert('Database reset error: ' + e.message);
+      toast.error('Database reset error: ' + e.message);
     } finally {
       setIsResetting(false);
     }
   };
 
   const isCustomer = currentUser?.role === 'CUSTOMER';
+  const role = currentUser?.role || 'SALES_REP';
 
-  const navItems = isCustomer
-    ? [
-        { label: 'My Quotations', path: '/customer-portal', icon: FileText },
-      ]
-    : [
-        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Quotations', path: '/quotations', icon: FileText },
-        { label: 'Approvals', path: '/approvals', icon: CheckSquare },
-        { label: 'Fulfillment', path: '/fulfillment', icon: Truck },
-        { label: 'Subscriptions', path: '/subscriptions', icon: Repeat },
-        { label: 'Invoices & Billing', path: '/invoices', icon: Receipt },
-        { label: 'Deal Health', path: '/deal-health', icon: Activity },
-        { label: 'Reports', path: '/reports', icon: BarChart3 },
-        { label: 'Admin Config', path: '/admin', icon: Settings },
-      ];
+  const navItems = (() => {
+    if (isCustomer) {
+      return [{ label: 'My Quotations', path: '/customer-portal', icon: FileText }];
+    }
+    switch (role) {
+      case 'FINANCE_OPERATIONS':
+        return [
+          { label: 'Approvals', path: '/approvals', icon: CheckSquare },
+          { label: 'Warehouse Stock', path: '/inventory', icon: Warehouse },
+          { label: 'Fulfillment', path: '/fulfillment', icon: Truck },
+          { label: 'Invoices & Billing', path: '/invoices', icon: Receipt },
+        ];
+      case 'SALES_MANAGER':
+        return [
+          { label: 'Quotations', path: '/quotations', icon: FileText },
+          { label: 'Requests', path: '/quote-requests', icon: Inbox },
+          { label: 'Approvals', path: '/approvals', icon: CheckSquare },
+          { label: 'Warehouse Stock', path: '/inventory', icon: Warehouse },
+          { label: 'Deal Health', path: '/deal-health', icon: Activity },
+          { label: 'Discount Governance', path: '/discount-governance', icon: BarChart3 },
+        ];
+      case 'ADMIN':
+        return [
+          { label: 'Admin Console', path: '/admin', icon: Settings },
+          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+          { label: 'Quotations', path: '/quotations', icon: FileText },
+          { label: 'Requests', path: '/quote-requests', icon: Inbox },
+          { label: 'Approvals', path: '/approvals', icon: CheckSquare },
+          { label: 'Discount Governance', path: '/discount-governance', icon: BarChart3 },
+          { label: 'Warehouse Stock', path: '/inventory', icon: Warehouse },
+          { label: 'Fulfillment', path: '/fulfillment', icon: Truck },
+          { label: 'Invoices & Billing', path: '/invoices', icon: Receipt },
+          { label: 'Deal Health', path: '/deal-health', icon: Activity },
+          { label: 'Reports', path: '/reports', icon: BarChart3 },
+        ];
+      case 'SALES_REP':
+      default:
+        return [
+          { label: 'Deal Command Center', path: '/dashboard', icon: LayoutDashboard },
+          { label: 'Requests', path: '/quote-requests', icon: Inbox },
+          { label: 'Commercial Quotations', path: '/quotations', icon: FileText },
+          { label: 'Approvals Tracker', path: '/approvals', icon: CheckSquare },
+          { label: 'Warehouse Stock', path: '/inventory', icon: Warehouse },
+          { label: 'Fulfillment Status', path: '/fulfillment', icon: Truck },
+          { label: 'Invoices & Billing', path: '/invoices', icon: Receipt },
+        ];
+    }
+  })();
+
+  const roleHomePath = (() => {
+    if (isCustomer) return '/customer-portal';
+    switch (role) {
+      case 'SALES_MANAGER':
+      case 'FINANCE_OPERATIONS':
+        return '/approvals';
+      case 'ADMIN':
+      case 'SALES_REP':
+      default:
+        return '/dashboard';
+    }
+  })();
 
   return (
     <div className="min-h-screen bg-canvas text-onyx flex flex-col md:flex-row">
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-white border-r border-ash flex flex-col shrink-0">
         <div className="p-4 border-b border-ash flex items-center justify-between">
-          <Link to={isCustomer ? '/customer-portal' : '/dashboard'} className="flex items-center gap-2.5">
+          <Link to={roleHomePath} className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-onyx flex items-center justify-center text-white shadow-sm">
               <Sparkles className="w-4 h-4 text-emerald-400" />
             </div>
@@ -106,25 +130,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <p className="text-[10px] text-signal font-semibold tracking-wider uppercase mt-0.5">Deal Engine Platform</p>
             </div>
           </Link>
-        </div>
-
-        {/* User Role Swapper */}
-        <div className="p-3 bg-fog border-b border-ash">
-          <label className="text-[10px] uppercase font-bold text-graphite tracking-wider flex items-center gap-1 mb-1.5">
-            <UserCheck className="w-3 h-3 text-signal" />
-            Active Role Swapper
-          </label>
-          <select
-            value={currentUser.email}
-            onChange={(e) => handleRoleSwitch(e.target.value)}
-            className="w-full bg-white text-sm text-onyx border border-ash rounded-lg px-2.5 py-2 font-medium focus:ring-1 focus:ring-signal focus:outline-none"
-          >
-            {demoUsers.map((u) => (
-              <option key={u.email} value={u.email}>
-                {u.name} ({u.role})
-              </option>
-            ))}
-          </select>
         </div>
 
         {/* Navigation Items */}
@@ -194,7 +199,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <span className="text-xs px-2 py-0.5 bg-fog text-charcoal rounded-full font-mono">v1.0</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Active User Session */}
+            {currentUser && (
+              <div className="flex items-center gap-2 bg-fog px-3 py-1.5 rounded-xl border border-ash text-xs">
+                <span className="font-semibold text-onyx">{currentUser.name}</span>
+                <span className="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded bg-white border border-ash text-signal">
+                  {currentUser.role}
+                </span>
+              </div>
+            )}
+
+            <NotificationCenter />
+
             <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 text-xs">
               <span className="w-2 h-2 rounded-full bg-signal animate-pulse"></span>
               <span className="text-emerald-700 font-medium">Service Online</span>
