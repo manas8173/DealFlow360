@@ -1,10 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { calculateLinePricing } from './pricing.service';
 import { calculateBlendedRisk } from './risk.service';
 import { logAudit } from './audit.service';
 import { generateInvoicesAndSubscriptions } from './billing.service';
-
-const prisma = new PrismaClient();
 
 /**
  * Creates a customer change request or counter-discount proposal.
@@ -205,10 +203,14 @@ export async function acceptCustomerChangeRequest({
   let approvalRequestCreated = null;
 
   if (riskResult.riskBand !== 'LOW') {
-    // Threshold exceeded! AUTOMATIC RE-APPROVAL TRIGGERED
     newStatus = 'PENDING_APPROVAL';
 
-    // Create a NEW ApprovalRequest preserving old approval history!
+    // Supersede any existing approval requests before creating new one
+    await prisma.approvalRequest.updateMany({
+      where: { quotationId: quote.id, status: { in: ['RETURNED', 'PENDING'] } },
+      data: { status: 'SUPERSEDED' },
+    });
+
     approvalRequestCreated = await prisma.approvalRequest.create({
       data: {
         quotationId: quote.id,
@@ -279,7 +281,7 @@ export async function confirmQuotationByCustomer(quoteId: string, customerId: st
 
   if (!quote) throw new Error('Forbidden or Quotation not found for customer');
   if (quote.status !== 'APPROVED' && quote.status !== 'SENT') {
-    throw new Error(`Cannot confirm quote in status '${quote.status}'. Quote must be APPROVED before confirmation.`);
+    throw new Error(`Cannot confirm quote in status '${quote.status}'. Quote must be APPROVED or SENT before confirmation.`);
   }
 
   const updatedQuote = await prisma.quotation.update({
