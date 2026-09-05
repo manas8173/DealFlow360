@@ -1,0 +1,17 @@
+node_modules/
+dist/
+client/dist/
+coverage/
+
+*.log
+*.debug.log
+
+.env
+.env.*
+!.env.example
+
+prisma/dev.db
+prisma/dev.db-journal
+
+.DS_Store
+Thumbs.db
