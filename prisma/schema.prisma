@@ -19,6 +19,7 @@ model User {
   customer     Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
   quotations   Quotation[]
   approvalSteps ApprovalStep[]
+  quoteRequests QuoteRequest[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -31,10 +32,10 @@ model Customer {
   tier           String          @default("BRONZE") // BRONZE, SILVER, GOLD
   users          User[]
   quotations     Quotation[]
-  subscriptions  Subscription[]
   changeRequests ChangeRequest[]
   invoices       Invoice[]
   creditNotes    CreditNote[]
+  quoteRequests  QuoteRequest[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
@@ -65,15 +66,14 @@ model Product {
   unit                   String               @default("unit")
   taxPercent             Float                @default(0.0)
   costPrice              Float                @default(0.0)
-  isSubscriptionEligible Boolean              @default(false)
   variants               ProductVariant[]
   quotationLines         QuotationLine[]
   inventoryItems         InventoryItem[]
   recommendationSource   RecommendationRule[] @relation("SourceProduct")
   recommendationTarget   RecommendationRule[] @relation("TargetProduct")
-  subscriptions          Subscription[]
   backorders             Backorder[]
   priceListRules         PriceListRule[]
+  quoteRequests          QuoteRequest[]
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
 }
@@ -170,8 +170,6 @@ model Quotation {
   approvalRequests   ApprovalRequest[]
   allocations        WarehouseAllocation[]
   backorders         Backorder[]
-  subscriptions      Subscription[]
-  billingSchedules   BillingSchedule[]
   invoices           Invoice[]
   negotiationThread  NegotiationThread?
   changeRequests     ChangeRequest[]
@@ -200,8 +198,6 @@ model QuotationLine {
   costPrice        Float                 @default(0.0)
   marginAmount     Float                 @default(0.0)
   marginPercent    Float                 @default(0.0)
-  isRecurring      Boolean               @default(false)
-  billingCycle     String?               // WEEKLY, MONTHLY, QUARTERLY, YEARLY
   allocations      WarehouseAllocation[]
   backorders       Backorder[]
   createdAt        DateTime              @default(now())
@@ -278,46 +274,6 @@ model Backorder {
   updatedAt      DateTime      @updatedAt
 }
 
-model SubscriptionPlan {
-  id           String @id @default(uuid())
-  name         String
-  billingCycle String // WEEKLY, MONTHLY, QUARTERLY, YEARLY
-  price        Float
-}
-
-model Subscription {
-  id                 String            @id @default(uuid())
-  quotationId        String
-  quotation          Quotation         @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  customerId         String
-  customer           Customer          @relation(fields: [customerId], references: [id])
-  productId          String
-  product            Product           @relation(fields: [productId], references: [id])
-  planName           String
-  billingCycle       String            // WEEKLY, MONTHLY, QUARTERLY, YEARLY
-  status             String            @default("ACTIVE") // ACTIVE, MODIFIED, CANCELLED
-  startDate          DateTime
-  currentPeriodStart DateTime
-  currentPeriodEnd   DateTime
-  nextBillingDate    DateTime
-  quantity           Int               @default(1)
-  unitPrice          Float
-  billingSchedules   BillingSchedule[]
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-}
-
-model BillingSchedule {
-  id             String        @id @default(uuid())
-  subscriptionId String?
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  quotationId    String
-  quotation      Quotation     @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  invoiceDate    DateTime
-  amount         Float
-  status         String        @default("SCHEDULED") // SCHEDULED, INVOICED
-}
-
 model Invoice {
   id            String        @id @default(uuid())
   invoiceNumber String        @unique
@@ -368,7 +324,6 @@ model CreditNote {
   customer       Customer     @relation(fields: [customerId], references: [id])
   invoiceId      String?
   invoice        Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  subscriptionId String?
   amount         Float
   reason         String
   issueDate      DateTime     @default(now())
@@ -436,3 +391,19 @@ model AuditLog {
   reason      String?
   timestamp   DateTime @default(now())
 }
+
+model QuoteRequest {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  salesRepId String
+  salesRep   User     @relation(fields: [salesRepId], references: [id])
+  productId  String?
+  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  quantity   Int      @default(1)
+  notes      String?
+  status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+

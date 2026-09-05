@@ -68,6 +68,7 @@ async function main() {
   // Clean existing tables
   await prisma.auditLog.deleteMany();
   await prisma.dealHealthAlert.deleteMany();
+  await prisma.quoteRequest.deleteMany();
   await prisma.changeRequest.deleteMany();
   await prisma.negotiationMessage.deleteMany();
   await prisma.negotiationThread.deleteMany();
@@ -75,9 +76,6 @@ async function main() {
   await prisma.payment.deleteMany();
   await prisma.invoiceLine.deleteMany();
   await prisma.invoice.deleteMany();
-  await prisma.billingSchedule.deleteMany();
-  await prisma.subscription.deleteMany();
-  await prisma.subscriptionPlan.deleteMany();
   await prisma.backorder.deleteMany();
   await prisma.warehouseAllocation.deleteMany();
   await prisma.recommendationRule.deleteMany();
@@ -182,7 +180,6 @@ async function main() {
       costPrice: 850.0,
       taxPercent: 15.0,
       unit: 'unit',
-      isSubscriptionEligible: false,
     },
   });
 
@@ -196,7 +193,6 @@ async function main() {
       costPrice: 200.0,
       taxPercent: 10.0,
       unit: 'service',
-      isSubscriptionEligible: false,
     },
   });
 
@@ -210,7 +206,6 @@ async function main() {
       costPrice: 80.0,
       taxPercent: 15.0,
       unit: 'unit',
-      isSubscriptionEligible: false,
     },
   });
 
@@ -250,7 +245,6 @@ async function main() {
       costPrice: 15.0,
       taxPercent: 10.0,
       unit: 'month',
-      isSubscriptionEligible: true,
     },
   });
 
@@ -264,7 +258,6 @@ async function main() {
       costPrice: 100.0,
       taxPercent: 10.0,
       unit: 'quarter',
-      isSubscriptionEligible: true,
     },
   });
 
@@ -278,7 +271,6 @@ async function main() {
       costPrice: 12.0,
       taxPercent: 10.0,
       unit: 'month',
-      isSubscriptionEligible: true,
     },
   });
 
@@ -398,7 +390,6 @@ async function main() {
             costPrice: 850.0,
             marginAmount: 412.0,
             marginPercent: 19.51,
-            isRecurring: false,
           },
           {
             productId: setupProduct.id,
@@ -414,7 +405,6 @@ async function main() {
             costPrice: 200.0,
             marginAmount: 169.0,
             marginPercent: 45.8,
-            isRecurring: false,
           },
           {
             productId: warrantyProduct.id,
@@ -430,7 +420,6 @@ async function main() {
             costPrice: 80.0,
             marginAmount: 82.0,
             marginPercent: 50.62,
-            isRecurring: false,
           },
         ],
       },
