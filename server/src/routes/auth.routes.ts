@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { generateToken, authenticateToken, AuthRequest } from '../middleware/auth.middleware';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 const INTERNAL_ROLES = ['SALES_REP', 'SALES_MANAGER', 'FINANCE_OPERATIONS'];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function publicUser(user: any) {
   return {
@@ -28,6 +28,10 @@ router.post('/login', async (req, res) => {
 
     if (!email || !password) {
       return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Email and password are required' } });
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Please provide a valid email address' } });
     }
 
     const user = await prisma.user.findUnique({
@@ -80,6 +84,14 @@ router.post('/register/employee', async (req, res) => {
       return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Name, email and password are required' } });
     }
 
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Please provide a valid work email address' } });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Password must be at least 8 characters long' } });
+    }
+
     if (!INTERNAL_ROLES.includes(role)) {
       return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Role must be one of: SALES_REP, SALES_MANAGER, FINANCE_OPERATIONS' } });
     }
@@ -120,6 +132,14 @@ router.post('/register/customer', async (req, res) => {
 
     if (!companyName || !companyEmail || !contactName || !password) {
       return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Company name, company email, contact name and password are required' } });
+    }
+
+    if (!EMAIL_REGEX.test(companyEmail)) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Please provide a valid company email address' } });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Password must be at least 8 characters long' } });
     }
 
     const normalizedCompanyEmail = companyEmail.toLowerCase().trim();

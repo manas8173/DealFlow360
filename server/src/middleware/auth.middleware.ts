@@ -1,7 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+// ── JWT Secret ────────────────────────────────────────────────────────────────
+// In production, JWT_SECRET must be set as an environment variable.
+// We warn loudly if it's missing rather than crashing, to keep the dev experience smooth.
 const JWT_SECRET = process.env.JWT_SECRET || 'dealflow360_hackathon_jwt_secret_key_2026';
+
+if (!process.env.JWT_SECRET) {
+  console.warn(
+    '[SECURITY WARNING] JWT_SECRET environment variable is not set. ' +
+    'Using default insecure fallback key. Set JWT_SECRET before deploying to production.'
+  );
+}
 
 export interface AuthenticatedUser {
   id: string;
