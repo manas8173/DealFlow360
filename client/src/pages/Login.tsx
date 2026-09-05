@@ -1,17 +1,29 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api, setAuthToken, setStoredUser } from '../api';
-import { Sparkles, ArrowRight, ShieldCheck, UserCheck, ExternalLink } from 'lucide-react';
+import { Sparkles, ArrowRight, ShieldCheck, ExternalLink, Shield, Layers, Receipt } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('rep@dealflow360.demo');
-  const [password, setPassword] = useState('Password123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address';
+    if (!password) errs.password = 'Password is required';
+    else if (password.length < 8) errs.password = 'Password must be at least 8 characters';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!validate()) return;
     setError(null);
     setLoading(true);
 
@@ -31,29 +43,6 @@ export const Login: React.FC = () => {
       setLoading(false);
     }
   };
-
-  const handleQuickLogin = (targetEmail: string) => {
-    setEmail(targetEmail);
-    setPassword('Password123!');
-    setTimeout(() => {
-      api.login({ email: targetEmail, password: 'Password123!' }).then((res) => {
-        setAuthToken(res.token);
-        setStoredUser(res.user);
-        if (res.user.role === 'CUSTOMER') {
-          navigate('/customer-portal');
-        } else {
-          navigate('/dashboard');
-        }
-      }).catch((err) => setError(err.message));
-    }, 100);
-  };
-
-  const demoAccounts = [
-    { title: 'Sales Representative', email: 'rep@dealflow360.demo', role: 'SALES_REP', desc: 'Create & submit quotes, view upsells' },
-    { title: 'Sales Manager', email: 'manager@dealflow360.demo', role: 'SALES_MANAGER', desc: 'Approve/return discount overages' },
-    { title: 'Finance Operations', email: 'finance@dealflow360.demo', role: 'FINANCE_OPERATIONS', desc: '2nd-level approval, fulfillment, billing' },
-    { title: 'Administrator', email: 'admin@dealflow360.demo', role: 'ADMIN', desc: 'Full governance & catalog configuration' },
-  ];
 
   return (
     <div className="min-h-screen bg-white text-onyx flex flex-col justify-center items-center p-6">
@@ -81,29 +70,28 @@ export const Login: React.FC = () => {
             </p>
           </div>
 
-          {/* Staff Roles */}
-          <div className="space-y-3">
-            <p className="text-xs uppercase tracking-wider font-bold text-graphite flex items-center gap-1.5">
-              <UserCheck className="w-3.5 h-3.5 text-signal" />
-              Staff Sign In
-            </p>
-            <div className="space-y-2">
-              {demoAccounts.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => handleQuickLogin(acc.email)}
-                  className="w-full text-left p-3 rounded-lg bg-white border border-ash hover:border-signal/40 shadow-sm transition-all flex items-center justify-between group"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-onyx group-hover:text-signal transition-colors">
-                      {acc.title}
-                    </p>
-                    <p className="text-xs text-graphite">{acc.desc}</p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-whisper group-hover:text-signal group-hover:translate-x-0.5 transition-all" />
-                </button>
-              ))}
+          {/* Platform Highlights */}
+          <div className="space-y-2.5 pt-1">
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-fog border border-ash">
+              <Shield className="w-4 h-4 text-signal mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-onyx">Self-Governing Discount Controls</p>
+                <p className="text-[11px] text-graphite">Enforce commercial policies with automatic risk scoring and margin safeguards.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-fog border border-ash">
+              <Layers className="w-4 h-4 text-signal mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-onyx">Multi-Tier Approval Routing</p>
+                <p className="text-[11px] text-graphite">Streamline sign-offs across sales leadership and finance operations.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-fog border border-ash">
+              <Receipt className="w-4 h-4 text-signal mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-onyx">Invoicing & Warehouse Fulfillment</p>
+                <p className="text-[11px] text-graphite">Multi-warehouse stock reservation alongside automated commercial invoicing.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -113,7 +101,7 @@ export const Login: React.FC = () => {
           <div className="bg-white border border-ash rounded-cards p-8 shadow-sm space-y-6">
             <div className="space-y-1">
               <h3 className="text-2xl font-display font-bold text-onyx tracking-tight">Sign In to Platform</h3>
-              <p className="text-sm text-graphite">Enter your credentials or use a staff role shortcut</p>
+              <p className="text-sm text-graphite">Enter your email and password to access your account</p>
             </div>
 
             {error && (
@@ -128,10 +116,11 @@ export const Login: React.FC = () => {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input"
-                  required
+                  placeholder="name@company.com"
+                  onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: '' })); }}
+                  className={`input ${fieldErrors.email ? 'border-rose-400' : ''}`}
                 />
+                {fieldErrors.email && <p className="text-[11px] text-rose-600">{fieldErrors.email}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -139,10 +128,11 @@ export const Login: React.FC = () => {
                 <input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input"
-                  required
+                  placeholder="••••••••"
+                  onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: '' })); }}
+                  className={`input ${fieldErrors.password ? 'border-rose-400' : ''}`}
                 />
+                {fieldErrors.password && <p className="text-[11px] text-rose-600">{fieldErrors.password}</p>}
               </div>
 
               <button
@@ -182,13 +172,6 @@ export const Login: React.FC = () => {
               >
                 Create Customer Account
               </Link>
-            </div>
-
-            <div className="pt-2 border-t border-ash text-center">
-              <p className="text-[11px] text-whisper flex items-center justify-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-signal" />
-                Role-Based Access & Server-Side Security Enforced
-              </p>
             </div>
           </div>
         </div>

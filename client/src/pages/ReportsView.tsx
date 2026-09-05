@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useToast } from '../components/Toast';
 import { BarChart3, TrendingUp, IndianRupee, Award, Download, CheckCircle2 } from 'lucide-react';
 
 export const ReportsView: React.FC = () => {
+  const toast = useToast();
   const [quotations, setQuotations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -11,8 +13,9 @@ export const ReportsView: React.FC = () => {
       try {
         const data = await api.getQuotations();
         setQuotations(data || []);
-      } catch (e) {
+      } catch (e: any) {
         console.error('Failed to load reports:', e);
+        toast.error('Failed to load reports: ' + e.message);
       } finally {
         setLoading(false);
       }
@@ -25,7 +28,7 @@ export const ReportsView: React.FC = () => {
   const avgMarginPercent = totalQuoteValue > 0 ? (totalMarginValue / totalQuoteValue) * 100 : 0;
 
   const handleExportXLS = () => {
-    alert('Exporting operational sales report to CSV/XLS...');
+    toast.info('Exporting operational sales report to CSV/XLS...');
   };
 
   return (

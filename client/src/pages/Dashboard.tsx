@@ -69,7 +69,7 @@ export const Dashboard: React.FC = () => {
             className="btn-primary"
           >
             <Plus className="w-4 h-4" />
-            New Quotation
+            View Quotations
           </Link>
           <Link
             to="/approvals"

@@ -17,28 +17,67 @@ export const Signup: React.FC = () => {
   const initialType: SignupType = searchParams.get('type') === 'customer' ? 'customer' : 'employee';
   const [type, setType] = useState<SignupType>(initialType);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [empName, setEmpName] = useState('');
   const [empEmail, setEmpEmail] = useState('');
   const [empPassword, setEmpPassword] = useState('');
-  const [empRole, setEmpRole] = useState('SALES_REP');
+  const [empConfirmPassword, setEmpConfirmPassword] = useState('');
+  const [empRole, setEmpRole] = useState('');
   const [empCompany, setEmpCompany] = useState('');
 
   const [custCompany, setCustCompany] = useState('');
   const [custCompanyEmail, setCustCompanyEmail] = useState('');
   const [custContactName, setCustContactName] = useState('');
   const [custPassword, setCustPassword] = useState('');
+  const [custConfirmPassword, setCustConfirmPassword] = useState('');
 
   const switchType = (nextType: SignupType) => {
     setType(nextType);
     setError(null);
     setSuccessMessage(null);
+    setFieldErrors({});
+  };
+
+  const validateEmployee = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!empName.trim()) errs.empName = 'Full name is required';
+    else if (empName.trim().length < 2) errs.empName = 'Name must be at least 2 characters';
+    if (!empEmail.trim()) errs.empEmail = 'Work email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(empEmail)) errs.empEmail = 'Enter a valid email address';
+    if (!empRole) errs.empRole = 'Please select a role';
+    if (!empPassword) errs.empPassword = 'Password is required';
+    else if (empPassword.length < 8) errs.empPassword = 'Password must be at least 8 characters';
+    else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(empPassword)) errs.empPassword = 'Password must include uppercase, lowercase and a number';
+    if (!empConfirmPassword) errs.empConfirmPassword = 'Confirm your password';
+    else if (empPassword !== empConfirmPassword) errs.empConfirmPassword = 'Passwords do not match';
+    if (empCompany && empCompany.trim().length < 2) errs.empCompany = 'Company must be at least 2 characters';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const validateCustomer = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!custCompany.trim()) errs.custCompany = 'Company name is required';
+    else if (custCompany.trim().length < 2) errs.custCompany = 'Company name must be at least 2 characters';
+    if (!custCompanyEmail.trim()) errs.custCompanyEmail = 'Company email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(custCompanyEmail)) errs.custCompanyEmail = 'Enter a valid email address';
+    if (!custContactName.trim()) errs.custContactName = 'Contact name is required';
+    else if (custContactName.trim().length < 2) errs.custContactName = 'Contact name must be at least 2 characters';
+    if (!custPassword) errs.custPassword = 'Password is required';
+    else if (custPassword.length < 8) errs.custPassword = 'Password must be at least 8 characters';
+    else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(custPassword)) errs.custPassword = 'Password must include uppercase, lowercase and a number';
+    if (!custConfirmPassword) errs.custConfirmPassword = 'Confirm your password';
+    else if (custPassword !== custConfirmPassword) errs.custConfirmPassword = 'Passwords do not match';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleEmployeeSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateEmployee()) return;
     setError(null);
     setLoading(true);
     try {
@@ -59,6 +98,7 @@ export const Signup: React.FC = () => {
 
   const handleCustomerSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateCustomer()) return;
     setError(null);
     setLoading(true);
     try {
@@ -159,11 +199,11 @@ export const Signup: React.FC = () => {
                 <input
                   type="text"
                   value={empName}
-                  onChange={(e) => setEmpName(e.target.value)}
+                  onChange={(e) => { setEmpName(e.target.value); setFieldErrors(prev => ({ ...prev, empName: '' })); }}
                   placeholder="e.g. Priya Sharma"
-                  className="input"
-                  required
+                  className={`input ${fieldErrors.empName ? 'border-rose-400' : ''}`}
                 />
+                {fieldErrors.empName && <p className="text-[11px] text-rose-600">{fieldErrors.empName}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -171,11 +211,11 @@ export const Signup: React.FC = () => {
                 <input
                   type="email"
                   value={empEmail}
-                  onChange={(e) => setEmpEmail(e.target.value)}
+                  onChange={(e) => { setEmpEmail(e.target.value); setFieldErrors(prev => ({ ...prev, empEmail: '' })); }}
                   placeholder="e.g. priya@company.com"
-                  className="input"
-                  required
+                  className={`input ${fieldErrors.empEmail ? 'border-rose-400' : ''}`}
                 />
+                {fieldErrors.empEmail && <p className="text-[11px] text-rose-600">{fieldErrors.empEmail}</p>}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -183,15 +223,17 @@ export const Signup: React.FC = () => {
                   <label className="text-xs font-medium text-charcoal">Desired Role</label>
                   <select
                     value={empRole}
-                    onChange={(e) => setEmpRole(e.target.value)}
-                    className="input"
+                    onChange={(e) => { setEmpRole(e.target.value); setFieldErrors(prev => ({ ...prev, empRole: '' })); }}
+                    className={`input ${fieldErrors.empRole ? 'border-rose-400' : ''}`}
                   >
+                    <option value="" disabled>Select your role...</option>
                     {employeeRoles.map((r) => (
                       <option key={r.value} value={r.value}>
                         {r.label}
                       </option>
                     ))}
                   </select>
+                  {fieldErrors.empRole && <p className="text-[11px] text-rose-600">{fieldErrors.empRole}</p>}
                 </div>
 
                 <div className="space-y-1.5">
@@ -199,24 +241,38 @@ export const Signup: React.FC = () => {
                   <input
                     type="text"
                     value={empCompany}
-                    onChange={(e) => setEmpCompany(e.target.value)}
+                    onChange={(e) => { setEmpCompany(e.target.value); setFieldErrors(prev => ({ ...prev, empCompany: '' })); }}
                     placeholder="e.g. DealFlow Solutions"
-                    className="input"
+                    className={`input ${fieldErrors.empCompany ? 'border-rose-400' : ''}`}
                   />
+                  {fieldErrors.empCompany && <p className="text-[11px] text-rose-600">{fieldErrors.empCompany}</p>}
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-charcoal">Password</label>
-                <input
-                  type="password"
-                  value={empPassword}
-                  onChange={(e) => setEmpPassword(e.target.value)}
-                  placeholder="Minimum 8 characters"
-                  minLength={8}
-                  className="input"
-                  required
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-charcoal">Password</label>
+                  <input
+                    type="password"
+                    value={empPassword}
+                    onChange={(e) => { setEmpPassword(e.target.value); setFieldErrors(prev => ({ ...prev, empPassword: '' })); }}
+                    placeholder="Minimum 8 characters"
+                    className={`input ${fieldErrors.empPassword ? 'border-rose-400' : ''}`}
+                  />
+                  {fieldErrors.empPassword && <p className="text-[11px] text-rose-600">{fieldErrors.empPassword}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-charcoal">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={empConfirmPassword}
+                    onChange={(e) => { setEmpConfirmPassword(e.target.value); setFieldErrors(prev => ({ ...prev, empConfirmPassword: '' })); }}
+                    placeholder="Re-enter password"
+                    className={`input ${fieldErrors.empConfirmPassword ? 'border-rose-400' : ''}`}
+                  />
+                  {fieldErrors.empConfirmPassword && <p className="text-[11px] text-rose-600">{fieldErrors.empConfirmPassword}</p>}
+                </div>
               </div>
 
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-700 flex items-start gap-2">
@@ -246,11 +302,11 @@ export const Signup: React.FC = () => {
                   <input
                     type="text"
                     value={custCompany}
-                    onChange={(e) => setCustCompany(e.target.value)}
+                    onChange={(e) => { setCustCompany(e.target.value); setFieldErrors(prev => ({ ...prev, custCompany: '' })); }}
                     placeholder="e.g. Acme Corporation"
-                    className="input"
-                    required
+                    className={`input ${fieldErrors.custCompany ? 'border-rose-400' : ''}`}
                   />
+                  {fieldErrors.custCompany && <p className="text-[11px] text-rose-600">{fieldErrors.custCompany}</p>}
                 </div>
 
                 <div className="space-y-1.5">
@@ -258,39 +314,50 @@ export const Signup: React.FC = () => {
                   <input
                     type="email"
                     value={custCompanyEmail}
-                    onChange={(e) => setCustCompanyEmail(e.target.value)}
+                    onChange={(e) => { setCustCompanyEmail(e.target.value); setFieldErrors(prev => ({ ...prev, custCompanyEmail: '' })); }}
                     placeholder="e.g. contact@acme.com"
-                    className="input"
-                    required
+                    className={`input ${fieldErrors.custCompanyEmail ? 'border-rose-400' : ''}`}
                   />
+                  {fieldErrors.custCompanyEmail && <p className="text-[11px] text-rose-600">{fieldErrors.custCompanyEmail}</p>}
                   <p className="text-[10px] text-whisper">Your company email will be used to sign in.</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-charcoal">Contact Person Name</label>
-                  <input
-                    type="text"
-                    value={custContactName}
-                    onChange={(e) => setCustContactName(e.target.value)}
-                    placeholder="e.g. Rohan Mehta"
-                    className="input"
-                    required
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-charcoal">Contact Person Name</label>
+                <input
+                  type="text"
+                  value={custContactName}
+                  onChange={(e) => { setCustContactName(e.target.value); setFieldErrors(prev => ({ ...prev, custContactName: '' })); }}
+                  placeholder="e.g. Rohan Mehta"
+                  className={`input ${fieldErrors.custContactName ? 'border-rose-400' : ''}`}
+                />
+                {fieldErrors.custContactName && <p className="text-[11px] text-rose-600">{fieldErrors.custContactName}</p>}
+              </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-charcoal">Password</label>
                   <input
                     type="password"
                     value={custPassword}
-                    onChange={(e) => setCustPassword(e.target.value)}
+                    onChange={(e) => { setCustPassword(e.target.value); setFieldErrors(prev => ({ ...prev, custPassword: '' })); }}
                     placeholder="Minimum 8 characters"
-                    minLength={8}
-                    className="input"
-                    required
+                    className={`input ${fieldErrors.custPassword ? 'border-rose-400' : ''}`}
                   />
+                  {fieldErrors.custPassword && <p className="text-[11px] text-rose-600">{fieldErrors.custPassword}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-charcoal">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={custConfirmPassword}
+                    onChange={(e) => { setCustConfirmPassword(e.target.value); setFieldErrors(prev => ({ ...prev, custConfirmPassword: '' })); }}
+                    placeholder="Re-enter password"
+                    className={`input ${fieldErrors.custConfirmPassword ? 'border-rose-400' : ''}`}
+                  />
+                  {fieldErrors.custConfirmPassword && <p className="text-[11px] text-rose-600">{fieldErrors.custConfirmPassword}</p>}
                 </div>
               </div>
 

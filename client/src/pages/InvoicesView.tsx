@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useToast } from '../components/Toast';
 import { Receipt, CheckCircle2, CreditCard, Clock, Plus, ArrowRight } from 'lucide-react';
 
 export const InvoicesView: React.FC = () => {
+  const toast = useToast();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -21,8 +23,9 @@ export const InvoicesView: React.FC = () => {
       setLoading(true);
       const data = await api.getInvoices();
       setInvoices(data || []);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to load invoices:', e);
+      toast.error('Failed to load invoices: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -48,11 +51,11 @@ export const InvoicesView: React.FC = () => {
         notes,
       });
 
-      alert(`Payment of ₹${paymentAmount} recorded successfully! Invoice updated.`);
+      toast.success(`Payment of ₹${paymentAmount} recorded successfully! Invoice updated.`);
       setSelectedInvoice(null);
       loadInvoices();
     } catch (e: any) {
-      alert('Payment recording failed: ' + e.message);
+      toast.error('Payment recording failed: ' + e.message);
     } finally {
       setProcessing(false);
     }
@@ -159,12 +162,21 @@ export const InvoicesView: React.FC = () => {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-charcoal">Payment Amount (₹)</label>
                 <input
-                  type="number"
-                  step="0.01"
-                  max={selectedInvoice.balanceAmount}
+                  type="text"
+                  inputMode="decimal"
                   value={paymentAmount}
                   onFocus={(e) => e.currentTarget.select()}
-                  onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                      const num = parseFloat(raw);
+                      if (raw === '' || isNaN(num)) {
+                        setPaymentAmount(0);
+                      } else {
+                        setPaymentAmount(Math.min(selectedInvoice.balanceAmount || 0, Math.max(0, num)));
+                      }
+                    }
+                  }}
                   className="input rounded-lg px-3 py-2 text-xs font-mono font-bold"
                   required
                 />
