@@ -1,0 +1,438 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  name         String
+  role         String         @default("SALES_REP") // SALES_REP, SALES_MANAGER, FINANCE_OPERATIONS, CUSTOMER, ADMIN
+  status       String         @default("ACTIVE") // ACTIVE, PENDING_APPROVAL, REJECTED
+  company      String?
+  customerId   String?
+  customer     Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  quotations   Quotation[]
+  approvalSteps ApprovalStep[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Customer {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  company        String
+  tier           String          @default("BRONZE") // BRONZE, SILVER, GOLD
+  users          User[]
+  quotations     Quotation[]
+  subscriptions  Subscription[]
+  changeRequests ChangeRequest[]
+  invoices       Invoice[]
+  creditNotes    CreditNote[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model CustomerTier {
+  id                 String @id @default(uuid())
+  tier               String @unique // BRONZE, SILVER, GOLD
+  maxDiscountPercent Float
+}
+
+model ProductCategory {
+  id                    String    @id @default(uuid())
+  name                  String    @unique
+  discountCeilingPercent Float
+  products              Product[]
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Product {
+  id                     String               @id @default(uuid())
+  sku                    String               @unique
+  name                   String
+  description            String?
+  categoryId             String
+  category               ProductCategory      @relation(fields: [categoryId], references: [id])
+  basePrice              Float
+  unit                   String               @default("unit")
+  taxPercent             Float                @default(0.0)
+  costPrice              Float                @default(0.0)
+  isSubscriptionEligible Boolean              @default(false)
+  variants               ProductVariant[]
+  quotationLines         QuotationLine[]
+  inventoryItems         InventoryItem[]
+  recommendationSource   RecommendationRule[] @relation("SourceProduct")
+  recommendationTarget   RecommendationRule[] @relation("TargetProduct")
+  subscriptions          Subscription[]
+  backorders             Backorder[]
+  priceListRules         PriceListRule[]
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+}
+
+model ProductVariant {
+  id             String          @id @default(uuid())
+  productId      String
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute      String
+  value          String
+  extraPrice     Float           @default(0.0)
+  quotationLines QuotationLine[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model PriceList {
+  id           String          @id @default(uuid())
+  name         String
+  currency     String          @default("INR")
+  customerTier String          @default("GOLD") // BRONZE, SILVER, GOLD
+  rules        PriceListRule[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model PriceListRule {
+  id                 String    @id @default(uuid())
+  priceListId        String
+  priceList          PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  productId          String
+  product            Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customPrice        Float?
+  discountAdjustment Float     @default(0.0)
+}
+
+model ApprovalPolicy {
+  id            String   @id @default(uuid())
+  name          String
+  riskBand      String   @unique // LOW, MEDIUM, HIGH
+  rolesRequired String   // JSON array string e.g. '["SALES_MANAGER", "FINANCE_OPERATIONS"]'
+  minScore      Float    @default(0.0)
+  maxScore      Float    @default(100.0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Warehouse {
+  id             String                @id @default(uuid())
+  name           String
+  code           String                @unique
+  location       String
+  inventoryItems InventoryItem[]
+  allocations    WarehouseAllocation[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+}
+
+model InventoryItem {
+  id          String    @id @default(uuid())
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  onHandQty   Int       @default(0)
+  reservedQty Int       @default(0)
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([warehouseId, productId])
+}
+
+model Quotation {
+  id                 String                @id @default(uuid())
+  quoteNumber        String                @unique
+  customerId         String
+  customer           Customer              @relation(fields: [customerId], references: [id])
+  ownerId            String
+  owner              User                  @relation(fields: [ownerId], references: [id])
+  status             String                @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, SENT, UNDER_NEGOTIATION, CONFIRMED, FULFILLING, COMPLETED, REJECTED, REVISION_REQUIRED
+  version            Int                   @default(1)
+  currency           String                @default("INR")
+  validityDate       DateTime
+  subtotal           Float                 @default(0.0)
+  totalDiscount      Float                 @default(0.0)
+  totalTax           Float                 @default(0.0)
+  netTotal           Float                 @default(0.0)
+  totalMargin        Float                 @default(0.0)
+  totalMarginPercent Float                 @default(0.0)
+  riskScore          Float                 @default(0.0)
+  riskBand           String                @default("LOW") // LOW, MEDIUM, HIGH
+  riskExplanation    String                @default("{}") // JSON string detailing risk calculations
+  notes              String?
+  lines              QuotationLine[]
+  approvalRequests   ApprovalRequest[]
+  allocations        WarehouseAllocation[]
+  backorders         Backorder[]
+  subscriptions      Subscription[]
+  billingSchedules   BillingSchedule[]
+  invoices           Invoice[]
+  negotiationThread  NegotiationThread?
+  changeRequests     ChangeRequest[]
+  dealHealthAlerts   DealHealthAlert[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+}
+
+model QuotationLine {
+  id               String                @id @default(uuid())
+  quotationId      String
+  quotation        Quotation             @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product               @relation(fields: [productId], references: [id])
+  variantId        String?
+  variant          ProductVariant?       @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  quantity         Int                   @default(1)
+  unitPrice        Float
+  discountPercent  Float                 @default(0.0)
+  effectiveCeiling Float                 @default(0.0)
+  overagePoints    Float                 @default(0.0)
+  status           String                @default("OK") // "OK" or "OVER (+Xpt)"
+  netPrice         Float
+  taxAmount        Float
+  totalAmount      Float
+  costPrice        Float                 @default(0.0)
+  marginAmount     Float                 @default(0.0)
+  marginPercent    Float                 @default(0.0)
+  isRecurring      Boolean               @default(false)
+  billingCycle     String?               // WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  allocations      WarehouseAllocation[]
+  backorders       Backorder[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+}
+
+model ApprovalRequest {
+  id               String         @id @default(uuid())
+  quotationId      String
+  quotation        Quotation      @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  quoteVersion     Int
+  status           String         @default("PENDING") // PENDING, APPROVED, RETURNED, REJECTED
+  currentStepIndex Int            @default(0)
+  steps            ApprovalStep[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model ApprovalStep {
+  id                String          @id @default(uuid())
+  approvalRequestId String
+  approvalRequest   ApprovalRequest @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  stepOrder         Int
+  roleRequired      String          // SALES_MANAGER, FINANCE_OPERATIONS, etc.
+  status            String          @default("PENDING") // PENDING, APPROVED, RETURNED, REJECTED
+  approverId        String?
+  approver          User?           @relation(fields: [approverId], references: [id])
+  comment           String?
+  actionDate        DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model RecommendationRule {
+  id                       String   @id @default(uuid())
+  sourceProductId          String
+  sourceProduct            Product  @relation("SourceProduct", fields: [sourceProductId], references: [id], onDelete: Cascade)
+  targetProductId          String
+  targetProduct            Product  @relation("TargetProduct", fields: [targetProductId], references: [id], onDelete: Cascade)
+  ruleType                 String   // UPSELL, CROSS_SELL, COMPLEMENTARY
+  marginDelta              Float    @default(0.0)
+  promotionDiscountPercent Float    @default(0.0)
+  description              String?
+  createdAt                DateTime @default(now())
+}
+
+model WarehouseAllocation {
+  id            String        @id @default(uuid())
+  quotationId   String
+  quotation     Quotation     @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  lineId        String
+  line          QuotationLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  warehouseId   String
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
+  allocatedQty  Int
+  shipmentCount Int           @default(1)
+  shippingCost  Float         @default(0.0)
+  status        String        @default("ALLOCATED") // PENDING, ALLOCATED, PARTIALLY_ALLOCATED, FULFILLED, OVERRIDDEN
+  createdAt     DateTime      @default(now())
+}
+
+model Backorder {
+  id             String        @id @default(uuid())
+  quotationId    String
+  quotation      Quotation     @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  lineId         String
+  line           QuotationLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product       @relation(fields: [productId], references: [id])
+  requestedQty   Int
+  backorderedQty Int
+  status         String        @default("PENDING") // PENDING, CONSOLIDATED, CANCELLED
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model SubscriptionPlan {
+  id           String @id @default(uuid())
+  name         String
+  billingCycle String // WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  price        Float
+}
+
+model Subscription {
+  id                 String            @id @default(uuid())
+  quotationId        String
+  quotation          Quotation         @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  customerId         String
+  customer           Customer          @relation(fields: [customerId], references: [id])
+  productId          String
+  product            Product           @relation(fields: [productId], references: [id])
+  planName           String
+  billingCycle       String            // WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  status             String            @default("ACTIVE") // ACTIVE, MODIFIED, CANCELLED
+  startDate          DateTime
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  nextBillingDate    DateTime
+  quantity           Int               @default(1)
+  unitPrice          Float
+  billingSchedules   BillingSchedule[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model BillingSchedule {
+  id             String        @id @default(uuid())
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  quotationId    String
+  quotation      Quotation     @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  invoiceDate    DateTime
+  amount         Float
+  status         String        @default("SCHEDULED") // SCHEDULED, INVOICED
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  quotationId   String?
+  quotation     Quotation?    @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  type          String        @default("ONE_TIME") // ONE_TIME, RECURRING
+  status        String        @default("ISSUED") // DRAFT, ISSUED, PARTIALLY_PAID, PAID, OVERDUE, CANCELLED
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime
+  subtotal      Float
+  taxAmount     Float
+  totalAmount   Float
+  paidAmount    Float         @default(0.0)
+  balanceAmount Float
+  lines         InvoiceLine[]
+  payments      Payment[]
+  creditNotes   CreditNote[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model InvoiceLine {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int
+  unitPrice   Float
+  amount      Float
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  invoiceId     String
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount        Float
+  paymentMethod String   @default("CREDIT_CARD") // CREDIT_CARD, BANK_TRANSFER, ACH
+  reference     String
+  paymentDate   DateTime @default(now())
+  notes         String?
+}
+
+model CreditNote {
+  id             String       @id @default(uuid())
+  customerId     String
+  customer       Customer     @relation(fields: [customerId], references: [id])
+  invoiceId      String?
+  invoice        Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  subscriptionId String?
+  amount         Float
+  reason         String
+  issueDate      DateTime     @default(now())
+}
+
+model NegotiationThread {
+  id          String               @id @default(uuid())
+  quotationId String               @unique
+  quotation   Quotation            @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  status      String               @default("OPEN")
+  messages    NegotiationMessage[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model NegotiationMessage {
+  id         String            @id @default(uuid())
+  threadId   String
+  thread     NegotiationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderRole String            // SALES_REP, SALES_MANAGER, FINANCE_OPERATIONS, CUSTOMER, ADMIN
+  senderName String
+  content    String
+  timestamp  DateTime          @default(now())
+}
+
+model ChangeRequest {
+  id                       String    @id @default(uuid())
+  quotationId              String
+  quotation                Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  customerId               String
+  customer                 Customer  @relation(fields: [customerId], references: [id])
+  lineId                   String?
+  requestedDiscountPercent Float?
+  requestedQuantity        Int?
+  requestedDeliveryDate    DateTime?
+  notes                    String?
+  status                   String    @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+}
+
+model DealHealthAlert {
+  id          String   @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  alertType   String   // STALLED, DISCOUNT_ANOMALY, DELIVERY_SLIPPAGE
+  severity    String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  message     String
+  detailsJson String   @default("{}")
+  status      String   @default("ACTIVE") // ACTIVE, NUDGED, RESOLVED, ESCALATED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String
+  actorName   String
+  actorRole   String
+  entityType  String
+  entityId    String
+  action      String
+  beforeState String?  // JSON string
+  afterState  String?  // JSON string
+  reason      String?
+  timestamp   DateTime @default(now())
+}
