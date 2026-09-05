@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../api';
+import { useToast } from '../components/Toast';
 import { Truck, Warehouse, Package, ArrowRight, ShieldAlert, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export const FulfillmentCenter: React.FC = () => {
+  const toast = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
@@ -11,7 +13,7 @@ export const FulfillmentCenter: React.FC = () => {
   const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [overrideLineId, setOverrideLineId] = useState('');
   const [overrideWarehouseId, setOverrideWarehouseId] = useState('');
-  const [overrideQty, setOverrideQty] = useState(1);
+  const [overrideQty, setOverrideQty] = useState('1');
   const [overrideReason, setOverrideReason] = useState('');
 
   useEffect(() => {
@@ -50,18 +52,18 @@ export const FulfillmentCenter: React.FC = () => {
     if (!selectedOrder) return;
     try {
       await api.acceptFulfillmentSplit(selectedOrder.id);
-      alert('Suggested multi-warehouse split accepted and inventory reserved!');
+      toast.success('Suggested multi-warehouse split accepted and inventory reserved!');
       setSelectedOrder(null);
       loadOrders();
     } catch (e: any) {
-      alert('Failed to accept split: ' + e.message);
+      toast.error('Failed to accept split: ' + e.message);
     }
   };
 
   const handleOverrideSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder || !overrideReason) {
-      alert('Reason is mandatory for manual fulfillment override.');
+      toast.warning('Reason is mandatory for manual fulfillment override.');
       return;
     }
 
@@ -69,17 +71,17 @@ export const FulfillmentCenter: React.FC = () => {
       await api.overrideFulfillment(selectedOrder.id, {
         lineId: overrideLineId,
         warehouseId: overrideWarehouseId,
-        allocatedQty: overrideQty,
+        allocatedQty: Math.max(1, parseInt(overrideQty, 10) || 1),
         reason: overrideReason,
       });
 
-      alert('Manual warehouse override recorded and audited successfully!');
+      toast.success('Manual warehouse override recorded and audited successfully!');
       setShowOverrideModal(false);
       setOverrideReason('');
       handleSelectOrder(selectedOrder);
       loadOrders();
     } catch (e: any) {
-      alert('Fulfillment override error: ' + e.message);
+      toast.error('Fulfillment override error: ' + e.message);
     }
   };
 
@@ -264,12 +266,20 @@ export const FulfillmentCenter: React.FC = () => {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-charcoal">Allocated Quantity</label>
                 <input
-                  type="number"
-                  min="1"
+                  type="text"
+                  inputMode="numeric"
                   value={overrideQty}
                   onFocus={(e) => e.currentTarget.select()}
-                  onChange={(e) => setOverrideQty(parseInt(e.target.value) || 1)}
-                  className="input rounded-lg px-3 py-2 text-xs"
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/[^0-9]/g, '');
+                    setOverrideQty(clean);
+                  }}
+                  onBlur={() => {
+                    if (!overrideQty || parseInt(overrideQty, 10) < 1) {
+                      setOverrideQty('1');
+                    }
+                  }}
+                  className="input rounded-lg px-3 py-2 text-xs font-mono font-bold"
                 />
               </div>
 
