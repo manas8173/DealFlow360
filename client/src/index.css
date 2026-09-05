@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-canvas text-onyx font-sans antialiased;
+    letter-spacing: -0.011em;
+  }
+
+  ::selection {
+    background: #059669;
+    color: #ffffff;
+  }
+}
+
+/* Flat, border-driven components per the Podscan design system */
+
+.card {
+  @apply bg-white border border-ash rounded-cards shadow-sm;
+}
+
+.table-card {
+  @apply bg-white border border-ash rounded-cards overflow-hidden;
+}
+
+.table-head {
+  @apply bg-fog text-charcoal uppercase text-[11px] font-semibold tracking-tight;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-buttons text-sm font-semibold px-5 py-2.5 transition-all cursor-pointer bg-signal text-white hover:shadow-signal-lg;
+}
+
+.btn-onyx {
+  @apply inline-flex items-center justify-center gap-2 rounded-buttons text-sm font-semibold px-5 py-2.5 transition-all cursor-pointer bg-onyx text-white hover:bg-black;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-buttons text-sm font-semibold px-5 py-2.5 transition-all cursor-pointer bg-white border border-ash text-onyx hover:bg-fog;
+}
+
+.btn-danger-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-buttons text-sm font-semibold px-4 py-2 transition-all cursor-pointer bg-white border border-rose-200 text-crimson hover:bg-rose-50;
+}
+
+.input {
+  @apply w-full bg-white border border-ash rounded-inputs px-3.5 py-2.5 text-sm text-onyx placeholder:text-veil focus:outline-none focus:border-signal focus:ring-2 focus:ring-signal/10 transition-colors;
+}
+
+/* Badges — wash pill with colored text */
+.badge {
+  @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
+}
+
+/* Custom scrollbars (light) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f4f4f5;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
