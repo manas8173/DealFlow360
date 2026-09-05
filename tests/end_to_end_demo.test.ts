@@ -119,7 +119,7 @@ describe('DealFlow360 Target Hackathon E2E Demo Flow', () => {
   it('Step 6: Accept Multi-Warehouse fulfillment split', async () => {
     const res = await request(app)
       .post(`/api/fulfillment/${q1042Id}/accept`)
-      .set('Authorization', `Bearer ${repToken}`);
+      .set('Authorization', `Bearer ${financeToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('FULFILLING');

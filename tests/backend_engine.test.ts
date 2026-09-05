@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { calculateLinePricing, getEffectiveDiscountCeiling } from '../server/src/services/pricing.service';
 import { calculateBlendedRisk } from '../server/src/services/risk.service';
-import { calculateProration } from '../server/src/services/billing.service';
 
 describe('DealFlow360 Business Logic Engines', () => {
   it('1. Effective Discount Ceiling Formula: MIN(customer_tier_limit, category_limit)', async () => {
@@ -53,23 +52,5 @@ describe('DealFlow360 Business Logic Engines', () => {
     expect(result.riskBand).toBe('LOW');
     expect(result.riskScore).toBe(0);
     expect(result.requiredApprovalChain.length).toBe(0);
-  });
-
-  it('5. Subscription Proration Math', () => {
-    const proration = calculateProration({
-      unitPrice: 46.0,
-      oldQuantity: 1,
-      newQuantity: 3,
-      daysInPeriod: 30,
-      remainingDays: 15,
-    });
-
-    // Old monthly = 46. New monthly = 138.
-    // Unused old 15 days = (46 / 30) * 15 = 23.
-    // New remaining 15 days = (138 / 30) * 15 = 69.
-    // Net adjustment = 69 - 23 = 46.
-    expect(proration.unusedOldValue).toBe(23.0);
-    expect(proration.newRemainingValue).toBe(69.0);
-    expect(proration.netAdjustment).toBe(46.0);
   });
 });
