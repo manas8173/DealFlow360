@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { RiskBadge } from '../components/RiskBadge';
 import { ApprovalTracker } from '../components/ApprovalTracker';
+import { useToast } from '../components/Toast';
 import { CheckSquare, Check, RotateCcw, X, AlertTriangle, FileText, ArrowRight } from 'lucide-react';
 
 export const ApprovalsList: React.FC = () => {
+  const toast = useToast();
   const [approvals, setApprovals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedApproval, setSelectedApproval] = useState<any>(null);
@@ -22,8 +24,9 @@ export const ApprovalsList: React.FC = () => {
       setLoading(true);
       const data = await api.getApprovals();
       setApprovals(data || []);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to load approvals:', e);
+      toast.error('Failed to load approvals: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -32,7 +35,7 @@ export const ApprovalsList: React.FC = () => {
   const handleAction = async () => {
     if (!selectedApproval || !actionType) return;
     if ((actionType === 'RETURN' || actionType === 'REJECT') && !comment.trim()) {
-      alert('Please enter a mandatory comment explaining your decision.');
+      toast.warning('Please enter a mandatory comment explaining your decision.');
       return;
     }
 
@@ -46,13 +49,13 @@ export const ApprovalsList: React.FC = () => {
         await api.rejectStep(selectedApproval.id, comment);
       }
 
-      alert(`Action '${actionType}' executed successfully!`);
+      toast.success(`Action '${actionType}' executed successfully!`);
       setSelectedApproval(null);
       setActionType(null);
       setComment('');
       loadApprovals();
     } catch (e: any) {
-      alert('Approval action failed: ' + e.message);
+      toast.error('Approval action failed: ' + e.message);
     } finally {
       setProcessing(false);
     }
