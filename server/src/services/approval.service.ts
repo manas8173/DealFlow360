@@ -1,13 +1,13 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { logAudit } from './audit.service';
-
-const prisma = new PrismaClient();
 
 /**
  * Submits a quotation for approval.
- * Evaluates risk score:
- * - If LOW risk: Quote is directly APPROVED (no approval steps required).
- * - If MEDIUM/HIGH risk: Quote transitions to PENDING_APPROVAL and creates an ApprovalRequest with required steps.
+ * - LOW risk: Quote is directly APPROVED (no approval steps required).
+ * - MEDIUM/HIGH risk: Quote transitions to PENDING_APPROVAL with ApprovalRequest.
+ *
+ * FIX: Any existing RETURNED approval requests are superseded before creating a new one,
+ * preventing orphaned requests when re-submitting after REVISION_REQUIRED.
  */
 export async function submitQuotationForApproval(quoteId: string, userId: string, userName: string, userRole: string) {
   const quote = await prisma.quotation.findUnique({
@@ -55,8 +55,17 @@ export async function submitQuotationForApproval(quoteId: string, userId: string
     if (quote.riskBand === 'HIGH') rolesRequired = ['SALES_MANAGER', 'FINANCE_OPERATIONS'];
   }
 
+  // ── FIX: Supersede any existing RETURNED/PENDING approval requests ─────────
+  await prisma.approvalRequest.updateMany({
+    where: {
+      quotationId: quoteId,
+      status: { in: ['RETURNED', 'PENDING'] },
+    },
+    data: { status: 'SUPERSEDED' },
+  });
+
   // Transition quote status to PENDING_APPROVAL
-  const updatedQuote = await prisma.quotation.update({
+  await prisma.quotation.update({
     where: { id: quoteId },
     data: { status: 'PENDING_APPROVAL' },
   });
@@ -72,7 +81,7 @@ export async function submitQuotationForApproval(quoteId: string, userId: string
         create: rolesRequired.map((role, idx) => ({
           stepOrder: idx,
           roleRequired: role,
-          status: idx === 0 ? 'PENDING' : 'PENDING',
+          status: 'PENDING',
         })),
       },
     },
@@ -225,7 +234,6 @@ export async function processApprovalStep({
     const isLastStep = approvalReq.currentStepIndex >= approvalReq.steps.length - 1;
 
     if (isLastStep) {
-      // All steps completed! Quote is APPROVED
       await prisma.approvalRequest.update({
         where: { id: approvalRequestId },
         data: { status: 'APPROVED' },
@@ -250,7 +258,6 @@ export async function processApprovalStep({
 
       return { status: 'APPROVED', message: 'Quotation fully approved!' };
     } else {
-      // Advance to next step
       const nextStepIndex = approvalReq.currentStepIndex + 1;
       await prisma.approvalRequest.update({
         where: { id: approvalRequestId },

@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export interface EvaluatedLineForRisk {
   lineName: string;
@@ -25,6 +23,11 @@ export interface RiskEvaluationResult {
 
 /**
  * Calculates blended discount risk score and risk band deterministically.
+ *
+ * Risk band thresholds:
+ *   LOW    → score < 2.0   (small discounts within acceptable range)
+ *   MEDIUM → 2.0 ≤ score ≤ 8.0  (requires Sales Manager approval)
+ *   HIGH   → score > 8.0   (requires Sales Manager + Finance approval)
  */
 export async function calculateBlendedRisk(lines: EvaluatedLineForRisk[]): Promise<RiskEvaluationResult> {
   if (!lines || lines.length === 0) {
@@ -77,13 +80,14 @@ export async function calculateBlendedRisk(lines: EvaluatedLineForRisk[]): Promi
   const roundedWeightedRisk = Math.round(weightedRisk * 100) / 100;
   const roundedWorstPenalty = Math.round(worstPenalty * 100) / 100;
 
-  // Determine Risk Band
+  // ── Determine Risk Band ───────────────────────────────────────────────────
+  // LOW: score <= 0 (no overages) — automatic approval
+  // MEDIUM: 0 < score ≤ 5.0 — needs Sales Manager approval
+  // HIGH: score > 5.0 — needs Sales Manager + Finance Operations approval
   let riskBand: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW';
-  if (roundedScore === 0) {
-    riskBand = 'LOW';
-  } else if (roundedScore <= 5.0) {
+  if (roundedScore > 0 && roundedScore <= 5.0) {
     riskBand = 'MEDIUM';
-  } else {
+  } else if (roundedScore > 5.0) {
     riskBand = 'HIGH';
   }
 

@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { calculateLinePricing } from './pricing.service';
 import { logAudit } from './audit.service';
-
-const prisma = new PrismaClient();
 
 export interface EnrichedRecommendation {
   id: string;
@@ -15,7 +13,6 @@ export interface EnrichedRecommendation {
     basePrice: number;
     costPrice: number;
     unit: string;
-    isSubscriptionEligible: boolean;
   };
   ruleType: string; // UPSELL, CROSS_SELL, COMPLEMENTARY
   marginDelta: number;
@@ -46,11 +43,10 @@ export async function getRecommendationsForQuotation(quoteId: string): Promise<E
 
   const currentProductIds = new Set(quote.lines.map((l) => l.productId));
 
-  // Find rules matching any product currently in the quote
   const rules = await prisma.recommendationRule.findMany({
     where: {
       sourceProductId: { in: Array.from(currentProductIds) },
-      targetProductId: { notIn: Array.from(currentProductIds) }, // Exclude products already in quote
+      targetProductId: { notIn: Array.from(currentProductIds) },
     },
     include: {
       targetProduct: true,
@@ -81,7 +77,6 @@ export async function getRecommendationsForQuotation(quoteId: string): Promise<E
         basePrice: target.basePrice,
         costPrice: target.costPrice,
         unit: target.unit,
-        isSubscriptionEligible: target.isSubscriptionEligible,
       },
       ruleType: rule.ruleType,
       marginDelta: rule.marginDelta,

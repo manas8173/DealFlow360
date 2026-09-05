@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export interface LinePricingInput {
   productId: string;
@@ -27,7 +25,6 @@ export interface LinePricingResult {
   costPrice: number;
   marginAmount: number;
   marginPercent: number;
-  isRecurring: boolean;
   unit: string;
 }
 
@@ -71,7 +68,7 @@ export async function calculateLinePricing(input: LinePricingInput): Promise<Lin
   }
 
   const effectiveCeiling = await getEffectiveDiscountCeiling(input.customerTier, product.categoryId);
-  const discountPercent = Math.max(0, input.discountPercent);
+  const discountPercent = Math.max(0, Math.min(100, input.discountPercent));
   const overagePoints = Math.max(0, discountPercent - effectiveCeiling);
 
   const roundedOverage = Math.round(overagePoints * 100) / 100;
@@ -105,7 +102,6 @@ export async function calculateLinePricing(input: LinePricingInput): Promise<Lin
     costPrice: product.costPrice,
     marginAmount,
     marginPercent,
-    isRecurring: product.isSubscriptionEligible,
     unit: product.unit,
   };
 }

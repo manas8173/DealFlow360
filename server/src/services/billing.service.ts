@@ -1,10 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { logAudit } from './audit.service';
 
-const prisma = new PrismaClient();
-
 /**
- * Generates hybrid one-time invoice and recurring subscription schedules for a confirmed quotation.
+ * Generates invoice for a confirmed quotation.
+ * Atomic invoice number: timestamp+random suffix pattern to avoid race conditions.
  */
 export async function generateInvoicesAndSubscriptions(quoteId: string, userId: string, userName: string, userRole: string) {
   const quote = await prisma.quotation.findUnique({
@@ -17,17 +16,14 @@ export async function generateInvoicesAndSubscriptions(quoteId: string, userId: 
 
   if (!quote) throw new Error('Quotation not found');
 
-  const oneTimeLines = quote.lines.filter((l) => !l.isRecurring);
-  const recurringLines = quote.lines.filter((l) => l.isRecurring);
-
   let oneTimeInvoice = null;
 
-  // 1. Generate One-Time Invoice
-  if (oneTimeLines.length > 0) {
+  // Generate Commercial Invoice for all quote lines
+  if (quote.lines.length > 0) {
     let subtotal = 0;
     let taxAmount = 0;
 
-    const invoiceLinesData = oneTimeLines.map((l) => {
+    const invoiceLinesData = quote.lines.map((l) => {
       subtotal += l.netPrice;
       taxAmount += l.taxAmount;
       return {
@@ -39,8 +35,8 @@ export async function generateInvoicesAndSubscriptions(quoteId: string, userId: 
     });
 
     const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
-    const invCount = await prisma.invoice.count();
-    const invoiceNumber = `INV-${1000 + invCount + 1}`;
+    // ── Atomic invoice number: timestamp + random suffix avoids race condition ──
+    const invoiceNumber = `INV-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
     oneTimeInvoice = await prisma.invoice.create({
       data: {
@@ -68,67 +64,13 @@ export async function generateInvoicesAndSubscriptions(quoteId: string, userId: 
       entityId: oneTimeInvoice.id,
       action: 'INVOICE_CREATED',
       afterState: { invoiceNumber, totalAmount, type: 'ONE_TIME' },
-      reason: 'Generated one-time invoice from confirmed quotation.',
-    });
-  }
-
-  // 2. Generate Recurring Subscriptions & Billing Schedules
-  const subscriptionsCreated = [];
-
-  for (const line of recurringLines) {
-    const startDate = new Date();
-    const cycle = line.billingCycle || 'MONTHLY';
-    const periodDays = cycle === 'WEEKLY' ? 7 : cycle === 'MONTHLY' ? 30 : cycle === 'QUARTERLY' ? 90 : 365;
-    const nextBillingDate = new Date(Date.now() + periodDays * 24 * 60 * 60 * 1000);
-
-    const subscription = await prisma.subscription.create({
-      data: {
-        quotationId: quote.id,
-        customerId: quote.customerId,
-        productId: line.productId,
-        planName: `${line.product.name} (${cycle})`,
-        billingCycle: cycle,
-        status: 'ACTIVE',
-        startDate,
-        currentPeriodStart: startDate,
-        currentPeriodEnd: nextBillingDate,
-        nextBillingDate,
-        quantity: line.quantity,
-        unitPrice: line.totalAmount,
-      },
-    });
-
-    // Generate upcoming 4 recurring billing schedule entries
-    for (let i = 1; i <= 4; i++) {
-      const scheduleDate = new Date(Date.now() + (periodDays * i) * 24 * 60 * 60 * 1000);
-      await prisma.billingSchedule.create({
-        data: {
-          subscriptionId: subscription.id,
-          quotationId: quote.id,
-          invoiceDate: scheduleDate,
-          amount: line.totalAmount,
-          status: 'SCHEDULED',
-        },
-      });
-    }
-
-    subscriptionsCreated.push(subscription);
-
-    await logAudit({
-      actorId: userId,
-      actorName: userName,
-      actorRole: userRole,
-      entityType: 'SUBSCRIPTION',
-      entityId: subscription.id,
-      action: 'SUBSCRIPTION_CREATED',
-      afterState: { planName: subscription.planName, nextBillingDate },
-      reason: 'Generated recurring subscription schedule from quote line.',
+      reason: 'Generated commercial invoice from confirmed quotation.',
     });
   }
 
   return {
     oneTimeInvoice,
-    subscriptions: subscriptionsCreated,
+    invoice: oneTimeInvoice,
   };
 }
 
