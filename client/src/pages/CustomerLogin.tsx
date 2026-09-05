@@ -5,13 +5,25 @@ import { Sparkles, ArrowRight, ShieldCheck, Building2, ArrowLeft } from 'lucide-
 
 export const CustomerLogin: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('customer@acme.demo');
-  const [password, setPassword] = useState('Password123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address';
+    if (!password) errs.password = 'Password is required';
+    else if (password.length < 8) errs.password = 'Password must be at least 8 characters';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     setError(null);
     setLoading(true);
 
@@ -29,19 +41,6 @@ export const CustomerLogin: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoCustomer = () => {
-    setLoading(true);
-    setError(null);
-    api.login({ email: 'customer@acme.demo', password: 'Password123!' })
-      .then((res) => {
-        setAuthToken(res.token);
-        setStoredUser(res.user);
-        navigate('/customer-portal');
-      })
-      .catch((err: any) => setError(err.message))
-      .finally(() => setLoading(false));
   };
 
   return (
@@ -66,28 +65,26 @@ export const CustomerLogin: React.FC = () => {
               Your quotations, negotiations &amp; renewals in one place.
             </h2>
             <p className="text-graphite text-sm leading-relaxed max-w-md">
-              View your company's quotations, accept approved quotes, negotiate counter offers, track order fulfillment, and manage subscription renewals.
+              View your company's quotations, accept approved quotes, negotiate counter offers, and track order fulfillment.
             </p>
           </div>
 
-          {/* Demo Customer */}
-          <div className="space-y-3">
-            <p className="text-xs uppercase tracking-wider font-bold text-graphite flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-violet-600" />
-              Demo Customer Access
-            </p>
-            <button
-              type="button"
-              onClick={handleDemoCustomer}
-              disabled={loading}
-              className="w-full text-left p-3 rounded-lg bg-white border border-ash hover:border-violet-400/40 shadow-sm transition-all flex items-center justify-between group"
-            >
+          {/* Portal Features */}
+          <div className="space-y-2.5 pt-1">
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-fog border border-ash">
+              <ShieldCheck className="w-4 h-4 text-violet-600 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-onyx group-hover:text-violet-700 transition-colors">Acme Corporation (customer@acme.demo)</p>
-                <p className="text-xs text-graphite">View quotations, negotiate & confirm orders</p>
+                <p className="text-xs font-bold text-onyx">Authorized Proposal Review</p>
+                <p className="text-[11px] text-graphite">Access official proposals with transparent pricing, taxes, and contract terms.</p>
               </div>
-              <ArrowRight className="w-4 h-4 text-whisper group-hover:text-violet-600 group-hover:translate-x-0.5 transition-all" />
-            </button>
+            </div>
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-fog border border-ash">
+              <Building2 className="w-4 h-4 text-violet-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-onyx">Direct Counter-Negotiations</p>
+                <p className="text-[11px] text-graphite">Request volume or line-item adjustments directly with your dedicated account rep.</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -111,10 +108,11 @@ export const CustomerLogin: React.FC = () => {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input"
-                  required
+                  placeholder="procurement@company.com"
+                  onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: '' })); }}
+                  className={`input ${fieldErrors.email ? 'border-rose-400' : ''}`}
                 />
+                {fieldErrors.email && <p className="text-[11px] text-rose-600">{fieldErrors.email}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -122,10 +120,11 @@ export const CustomerLogin: React.FC = () => {
                 <input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input"
-                  required
+                  placeholder="••••••••"
+                  onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: '' })); }}
+                  className={`input ${fieldErrors.password ? 'border-rose-400' : ''}`}
                 />
+                {fieldErrors.password && <p className="text-[11px] text-rose-600">{fieldErrors.password}</p>}
               </div>
 
               <button
@@ -158,7 +157,7 @@ export const CustomerLogin: React.FC = () => {
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-graphite hover:text-onyx transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                Staff Sign In
+                Platform Sign In
               </Link>
               <p className="text-[11px] text-whisper flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-signal" />
