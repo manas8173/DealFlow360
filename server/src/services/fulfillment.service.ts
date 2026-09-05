@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { logAudit } from './audit.service';
-
-const prisma = new PrismaClient();
 
 export interface WarehouseSplitRecommendation {
   lineId: string;
@@ -40,9 +38,6 @@ export async function recommendFulfillment(quoteId: string): Promise<WarehouseSp
   const results: WarehouseSplitRecommendation[] = [];
 
   for (const line of quote.lines) {
-    // Only physical non-subscription items require fulfillment
-    if (line.isRecurring) continue;
-
     const requested = line.quantity;
     let remainingNeeded = requested;
 
@@ -55,7 +50,7 @@ export async function recommendFulfillment(quoteId: string): Promise<WarehouseSp
         warehouseCode: wh.code,
         availableQty: available,
         allocatedQty: 0,
-        shippingCost: wh.code === 'WH-MAIN' ? 25.0 : 40.0, // Shipping cost model
+        shippingCost: wh.code === 'WH-MAIN' ? 25.0 : 40.0,
       };
     });
 
@@ -105,8 +100,17 @@ export async function recommendFulfillment(quoteId: string): Promise<WarehouseSp
 
 /**
  * Accepts suggested warehouse split and executes inventory reservations & backorders.
+ * IDEMPOTENCY: Throws if allocations already exist for this quotation.
  */
 export async function acceptFulfillmentAllocation(quoteId: string, userId: string, userName: string, userRole: string) {
+  // ── Idempotency guard ─────────────────────────────────────────────────────
+  const existingAllocations = await prisma.warehouseAllocation.findFirst({
+    where: { quotationId: quoteId },
+  });
+  if (existingAllocations) {
+    throw new Error('Fulfillment allocations already exist for this order. Cannot accept again.');
+  }
+
   const recommendations = await recommendFulfillment(quoteId);
 
   for (const rec of recommendations) {
@@ -154,7 +158,7 @@ export async function acceptFulfillmentAllocation(quoteId: string, userId: strin
   }
 
   // Update Quote Status
-  const updatedQuote = await prisma.quotation.update({
+  await prisma.quotation.update({
     where: { id: quoteId },
     data: { status: 'FULFILLING' },
   });

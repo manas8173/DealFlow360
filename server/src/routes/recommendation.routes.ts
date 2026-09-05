@@ -1,16 +1,15 @@
 import { Router } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
+import { authenticateToken, requireRoles, AuthRequest } from '../middleware/auth.middleware';
 import { getRecommendationsForQuotation } from '../services/recommendation.service';
 import { calculateLinePricing } from '../services/pricing.service';
 import { recalculateQuotation } from './quotation.routes';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { logAudit } from '../services/audit.service';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/quotations/:id/recommendations
-router.get('/quotations/:id/recommendations', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/quotations/:id/recommendations', authenticateToken, requireRoles(['SALES_REP', 'ADMIN']), async (req: AuthRequest, res) => {
   try {
     const recommendations = await getRecommendationsForQuotation(req.params.id);
     return res.json(recommendations);
@@ -20,7 +19,7 @@ router.get('/quotations/:id/recommendations', authenticateToken, async (req: Aut
 });
 
 // POST /api/quotations/:id/recommendations/:productId/add - One-click add recommended product to quote
-router.post('/quotations/:id/recommendations/:productId/add', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/quotations/:id/recommendations/:productId/add', authenticateToken, requireRoles(['SALES_REP', 'ADMIN']), async (req: AuthRequest, res) => {
   try {
     const { id: quoteId, productId } = req.params;
     const { promotionDiscountPercent } = req.body;
@@ -56,8 +55,6 @@ router.post('/quotations/:id/recommendations/:productId/add', authenticateToken,
         costPrice: pricing.costPrice,
         marginAmount: pricing.marginAmount,
         marginPercent: pricing.marginPercent,
-        isRecurring: pricing.isRecurring,
-        billingCycle: pricing.isRecurring ? 'MONTHLY' : null,
       },
     });
 

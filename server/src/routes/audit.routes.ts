@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { authenticateToken, AuthRequest } from '../middleware/auth.middleware';
+import { prisma } from '../lib/prisma';
+import { authenticateToken, requireRoles, AuthRequest } from '../middleware/auth.middleware';
 
 const router = Router();
-const prisma = new PrismaClient();
 
-// GET /api/audit - List append-only audit logs
-router.get('/', authenticateToken, async (req: AuthRequest, res) => {
+// GET /api/audit - List append-only audit logs (Admin only)
+router.get('/', authenticateToken, requireRoles(['ADMIN']), async (req: AuthRequest, res) => {
   try {
     const { entityId, entityType } = req.query;
     const whereClause: any = {};

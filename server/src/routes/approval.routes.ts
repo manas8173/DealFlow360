@@ -1,15 +1,15 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { authenticateToken, requireRoles, AuthRequest } from '../middleware/auth.middleware';
 import { processApprovalStep } from '../services/approval.service';
 
 const router = Router();
-const prisma = new PrismaClient();
 
-// GET /api/approvals - List pending approval requests for Sales Manager or Finance
-router.get('/', authenticateToken, requireRoles(['SALES_MANAGER', 'FINANCE_OPERATIONS', 'ADMIN']), async (req: AuthRequest, res) => {
+// GET /api/approvals - List approval requests
+router.get('/', authenticateToken, requireRoles(['SALES_REP', 'SALES_MANAGER', 'FINANCE_OPERATIONS', 'ADMIN']), async (req: AuthRequest, res) => {
   try {
     const userRole = req.user!.role;
+    const userId = req.user!.id;
 
     const approvalRequests = await prisma.approvalRequest.findMany({
       include: {
@@ -25,9 +25,13 @@ router.get('/', authenticateToken, requireRoles(['SALES_MANAGER', 'FINANCE_OPERA
       orderBy: { createdAt: 'desc' },
     });
 
-    // Filter to requests where current step matches user role or user is admin
+    // Filter to requests relevant to the user
     const pendingForUser = approvalRequests.filter((reqItem) => {
       if (userRole === 'ADMIN') return true;
+      if (userRole === 'SALES_REP') {
+        // Sales Rep sees all approval requests for their own quotations
+        return reqItem.quotation?.ownerId === userId;
+      }
       if (reqItem.status !== 'PENDING') return true; // Show history
       const currentStep = reqItem.steps[reqItem.currentStepIndex];
       return currentStep && currentStep.roleRequired === userRole;
