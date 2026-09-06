@@ -1,0 +1,42 @@
+{
+  "folders": [
+    {
+      "name": "⚙️  BACKEND — Express API + Prisma",
+      "path": "server"
+    },
+    {
+      "name": "🗄️  DATABASE — Prisma Schema + Migrations",
+      "path": "prisma"
+    },
+    {
+      "name": "🧪  TESTS — API & E2E Test Suite",
+      "path": "tests"
+    },
+    {
+      "name": "🖥️  FRONTEND — React + Vite + TypeScript",
+      "path": "client"
+    },
+    {
+      "name": "📦  ROOT — Workspace Config",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.expand": false,
+    "explorer.fileNesting.patterns": {
+      "package.json": "package-lock.json, tsconfig.json, .gitignore, vitest.config.*",
+      "tailwind.config.js": "postcss.config.js",
+      "vite.config.ts": "vite.config.js",
+      "index.html": "*.ico"
+    },
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.git": true
+    },
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "typescript.preferences.importModuleSpecifier": "relative"
+  }
+}
