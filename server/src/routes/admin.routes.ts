@@ -125,6 +125,7 @@ router.get('/products', authenticateToken, requireRoles(INTERNAL_ROLES), async (
   try {
     const products = await prisma.product.findMany({
       include: { category: true, variants: true, inventoryItems: { include: { warehouse: true } } },
+      orderBy: { name: 'asc' },
     });
     return res.json(products);
   } catch (error: any) {
