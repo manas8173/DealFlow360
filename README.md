@@ -73,34 +73,46 @@ All accounts use the standard password: `Password123!`
 ### Prerequisites
 - Node.js v18+
 - npm v9+
+- PostgreSQL v14+ (or Docker)
 
 ### Installation & Run
 
-1. **Install Root & Sub-package Dependencies**:
+1. **Configure Environment Variables**:
+   Copy `.env.example` to `.env` (already configured by default):
+   ```env
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dealflow360?schema=public"
+   ```
+
+2. **Start PostgreSQL (Optional if using Docker)**:
+   ```bash
+   docker compose up -d
+   ```
+
+3. **Install Root & Sub-package Dependencies**:
    ```bash
    npm install
    npm --prefix client install
    ```
 
-2. **Push Database Schema & Seed Data**:
+4. **Push Database Schema & Seed Data**:
    ```bash
    npm run db:push
    npm run db:seed
    ```
 
-3. **Run Dev Servers (Backend API & React Client)**:
+5. **Run Dev Servers (Backend API & React Client)**:
    ```bash
    npm run dev
    ```
-   - Client App: `http://localhost:3000`
+   - Client App: `http://localhost:5173`
    - Backend API: `http://localhost:5000`
 
-4. **Run Unit & E2E Integration Test Suite**:
+6. **Run Unit & E2E Integration Test Suite**:
    ```bash
    npm test
    ```
 
-5. **Reset Database to Seed State**:
+7. **Reset Database to Seed State**:
    ```bash
    npm run db:reset
    ```
@@ -137,6 +149,6 @@ A complete walkthrough of the platform's core workflow:
 ## 💻 Tech Stack Architecture
 
 - **Backend**: Node.js, Express, TypeScript, REST API, JWT Authentication, Zod validation.
-- **ORM & Database**: Prisma ORM with zero-dependency SQLite (`dev.db`).
+- **ORM & Database**: Prisma ORM with PostgreSQL database.
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router v6.
 - **Testing**: Vitest + Supertest integration runner.
